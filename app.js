@@ -193,6 +193,7 @@ function render() {
   el("refundTotal").textContent = money.format(total.refund);
   el("netTotal").textContent = money.format(total.net);
   el("expenseTotal").textContent = money.format(total.expense);
+  el("expenseRatioTotal").textContent = total.net ? percent.format(total.expense / total.net) : "—";
 
   const ownerRows = [...byOwner.entries()].sort((a, b) => b[1].totalNet - a[1].totalNet);
   el("ownerCategoryBody").innerHTML = ownerRows.map(([owner, value]) => {
