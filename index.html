@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="上传每日销售与推广数据，自动按负责人、商品和分类统计净销售额、推广花费与风险。">
+  <title>猫宁销售中台</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b1f33'/%3E%3Cpath d='M16 44V27h8v17zm12 0V17h8v27zm12 0V23h8v21z' fill='%2338bdf8'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">SALES OPERATIONS</p>
+      <h1>猫宁销售中台</h1>
+    </div>
+    <div class="sync-state"><span class="pulse"></span><span id="syncText">正在载入数据</span></div>
+  </header>
+
+  <main>
+    <section class="workspace" aria-label="数据导入与统计条件">
+      <div class="upload-card" id="dropZone">
+        <div class="upload-icon" aria-hidden="true">⇧</div>
+        <div>
+          <h2>导入每日销售与推广数据</h2>
+          <p>支持销售 Excel 和商品推广花费 CSV；按“日期 + 商品ID”自动合并、覆盖。</p>
+        </div>
+        <label class="button primary" for="fileInput">选择数据文件</label>
+        <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" multiple hidden>
+      </div>
+
+      <div class="range-card">
+        <label>开始日期<input id="startDate" type="date"></label>
+        <span class="range-line"></span>
+        <label>结束日期<input id="endDate" type="date"></label>
+      </div>
+    </section>
+
+    <section class="kpis" aria-label="核心指标">
+      <article><span>纳入记录</span><strong id="recordCount">—</strong><small>标题含 1217，排除打印机</small></article>
+      <article><span>支付金额</span><strong id="paymentTotal">—</strong><small>所选统计期间</small></article>
+      <article><span>退款金额</span><strong id="refundTotal">—</strong><small>成功退款金额</small></article>
+      <article class="accent"><span>净销售额</span><strong id="netTotal">—</strong><small>支付金额 − 退款</small></article>
+      <article><span>推广总花费</span><strong id="expenseTotal">—</strong><small>按商品ID匹配</small></article>
+    </section>
+
+    <section class="panel breakdown-panel">
+      <div class="section-heading">
+        <div><p class="section-kicker">OWNER × CATEGORY</p><h2>负责人分类业绩</h2></div>
+        <div class="legend"><span><i class="dot air"></i>空净</span><span><i class="dot parts"></i>配件</span><span><i class="dot cleaner"></i>清洁液</span><span><i class="dot car"></i>汽车</span></div>
+      </div>
+      <div class="table-wrap">
+        <table class="breakdown-table">
+          <thead>
+            <tr><th rowspan="2">负责人</th><th colspan="2">空净</th><th colspan="2">配件</th><th colspan="2">清洁液</th><th colspan="2">汽车</th><th colspan="3">合计</th></tr>
+            <tr><th>净销售额</th><th>花费</th><th>净销售额</th><th>花费</th><th>净销售额</th><th>花费</th><th>净销售额</th><th>花费</th><th>净销售额</th><th>花费</th><th>花费占比</th></tr>
+          </thead>
+          <tbody id="ownerCategoryBody"></tbody>
+          <tfoot id="ownerCategoryFoot"></tfoot>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel promotion-panel">
+      <div class="section-heading promotion-heading">
+        <div>
+          <p class="section-kicker">PROMOTION ANALYSIS</p>
+          <h2>推广数据分析</h2>
+          <p class="section-note">空烧：有推广花费且净销售额 ≤ 0；高风险：花费占比 ≥ 50%；需关注：花费占比 20%–50%。</p>
+        </div>
+        <select id="promotionRiskFilter" aria-label="筛选推广风险">
+          <option value="risk">风险链接</option>
+          <option value="空烧">仅看空烧</option>
+          <option value="高风险">仅看高风险</option>
+          <option value="需关注">仅看需关注</option>
+          <option value="all">全部推广商品</option>
+        </select>
+      </div>
+      <div class="promotion-kpis">
+        <article><span>推广商品数</span><strong id="promotedProductCount">—</strong><small>有推广花费的商品ID</small></article>
+        <article><span>推广净销售额</span><strong id="promotedNetTotal">—</strong><small>有花费商品的净销售额</small></article>
+        <article class="risk"><span>空烧链接数</span><strong id="emptyBurnCount">—</strong><small id="emptyBurnSpend">空烧花费 —</small></article>
+        <article><span>高风险链接数</span><strong id="highRiskCount">—</strong><small>花费占比 ≥ 50%</small></article>
+      </div>
+      <div class="analysis-strip" id="promotionInsight">—</div>
+      <div class="table-wrap promotion-scroll">
+        <table class="promotion-table">
+          <thead><tr><th>状态</th><th>负责人</th><th>分类</th><th>商品ID</th><th>商品名称</th><th>净销售额</th><th>推广花费</th><th>花费占比</th></tr></thead>
+          <tbody id="promotionBody"></tbody>
+        </table>
+      </div>
+      <div class="promotion-count" id="promotionCount">—</div>
+    </section>
+
+    <section class="panel detail-panel">
+      <div class="section-heading detail-heading">
+        <div><p class="section-kicker">DETAIL</p><h2>销售明细</h2></div>
+        <div class="filters">
+          <label class="detail-date"><span>开始日期</span><input id="detailStartDate" type="date" aria-label="明细开始日期"></label>
+          <span class="detail-date-separator">—</span>
+          <label class="detail-date"><span>结束日期</span><input id="detailEndDate" type="date" aria-label="明细结束日期"></label>
+          <input id="searchInput" type="search" placeholder="搜索商品ID或商品名称" aria-label="搜索商品">
+          <select id="ownerFilter" aria-label="筛选负责人"><option value="">全部负责人</option></select>
+          <select id="categoryFilter" aria-label="筛选分类"><option value="">全部分类</option><option>空净</option><option>配件</option><option>清洁液</option><option>汽车</option></select>
+        </div>
+      </div>
+      <div class="table-wrap detail-scroll">
+        <table class="detail-table">
+          <thead><tr><th>负责人</th><th>分类</th><th>商品ID</th><th>商品名称</th><th>支付金额</th><th>退款</th><th>净销售额</th><th>花费</th><th>花费占比</th></tr></thead>
+          <tbody id="detailBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination"><button id="prevPage" class="button ghost">上一页</button><span id="pageInfo">—</span><button id="nextPage" class="button ghost">下一页</button></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
